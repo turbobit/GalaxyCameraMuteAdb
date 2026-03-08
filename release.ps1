@@ -3,6 +3,10 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+[Console]::InputEncoding = $utf8NoBom
+[Console]::OutputEncoding = $utf8NoBom
+$OutputEncoding = $utf8NoBom
 
 function Invoke-Checked {
     param(
@@ -108,11 +112,11 @@ $notes.Add("")
 if ($previousTag) {
     $notes.Add("Compare: $previousTag..$tag")
     $notes.Add("")
-    $commitLines = Get-CommandOutput -FilePath "git" -Arguments @("log", "$previousTag..HEAD", "--pretty=format:- %h %s")
+    $commitLines = Get-CommandOutput -FilePath "git" -Arguments @("-c", "i18n.logOutputEncoding=utf-8", "log", "$previousTag..HEAD", "--pretty=format:- %h %s")
 } else {
     $notes.Add("Initial release")
     $notes.Add("")
-    $commitLines = Get-CommandOutput -FilePath "git" -Arguments @("log", "--reverse", "--pretty=format:- %h %s")
+    $commitLines = Get-CommandOutput -FilePath "git" -Arguments @("-c", "i18n.logOutputEncoding=utf-8", "log", "--reverse", "--pretty=format:- %h %s")
 }
 
 if ($commitLines.Count -eq 0) {
@@ -130,7 +134,7 @@ $notes.Add("Asset")
 $notes.Add("")
 $notes.Add("- $assetName")
 
-Set-Content -Path $notesPath -Value ($notes -join "`r`n") -Encoding ascii
+[System.IO.File]::WriteAllText($notesPath, ($notes -join "`r`n"), $utf8NoBom)
 
 if ($previousTag) {
     Write-Host "Previous tag: $previousTag"
