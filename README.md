@@ -39,6 +39,8 @@ go run .
 run.cmd
 ```
 
+실행 시 현재 버전이 함께 출력됩니다. 버전은 프로젝트 루트의 `VERSION` 파일로 관리합니다.
+
 흐름:
 
 1. `adb devices -l` 로 연결된 장비 목록 조회
@@ -55,13 +57,19 @@ platform-tools\adb.exe
 ## 빌드
 
 ```bash
-go build -o GalaxyCameraMuteAdb.exe .
+build.cmd
 ```
 
 또는 스크립트:
 
 ```bat
 build.cmd
+```
+
+`build.cmd` 는 `release` 폴더를 만들고, `VERSION` 파일 값을 읽어 아래 형태로 실행 파일을 생성합니다.
+
+```text
+release\GalaxyCameraMuteAdb_v0.1.0.exe
 ```
 
 ## 참고

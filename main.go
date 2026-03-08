@@ -14,6 +14,8 @@ import (
 const shutterSoundKey = "csc_pref_camera_forced_shuttersound_key"
 const platformToolsURL = "https://developer.android.com/tools/releases/platform-tools"
 
+var version = "dev"
+
 type Device struct {
 	Serial  string
 	State   string
@@ -24,6 +26,8 @@ type Device struct {
 }
 
 func main() {
+	fmt.Printf("GalaxyCameraMuteAdb v%s\n", version)
+
 	adbPath, err := resolveAdbPath()
 	if err != nil {
 		exitWithError(err)
