@@ -23,20 +23,35 @@ ADB lookup order:
 2. `ADB_PATH` environment variable
 3. `platform-tools\adb.exe` inside the project folder
 4. Common Windows Android SDK locations
+5. If still not found, automatically download and extract Platform Tools into `platform-tools\`
 
-Official download:
+Official pages:
 
 ```text
 https://developer.android.com/tools/releases/platform-tools
 ```
 
+Direct Windows ZIP used by the app for auto-download:
+
+```text
+https://dl.google.com/android/repository/platform-tools-latest-windows.zip
+```
+
 ## Run
+
+Windows:
 
 ```bat
 run.cmd
 ```
 
-You can also run:
+Linux / macOS:
+
+```sh
+sh ./run.sh
+```
+
+You can also run directly:
 
 ```bash
 go run .
@@ -72,22 +87,48 @@ You can also place ADB directly in the project folder:
 platform-tools\adb.exe
 ```
 
+If `adb` is missing, the app can automatically:
+
+1. Download the official Windows Platform Tools ZIP
+2. Extract it into `platform-tools\`
+3. Run `platform-tools\adb.exe`
+
+If auto-download fails because of network or policy restrictions, manual download is still possible from the official page above.
+
 ## Build
+
+Windows:
 
 ```bat
 build.cmd
 ```
 
-`build.cmd` creates the `release` folder and outputs a versioned executable like this:
+Linux / macOS:
+
+```sh
+sh ./build.sh
+```
+
+The build scripts create the `release` folder and output a versioned binary like this:
 
 ```text
 release\GalaxyCameraMuteAdb_v0.1.0.exe
+release/GalaxyCameraMuteAdb_v0.1.0_linux
+release/GalaxyCameraMuteAdb_v0.1.0_macos
 ```
 
 ## Release
 
+Windows:
+
 ```bat
 release.cmd
+```
+
+Linux / macOS:
+
+```sh
+sh ./release.sh
 ```
 
 Release flow:
@@ -108,9 +149,14 @@ Local dry run without remote publish:
 release.cmd -SkipPublish
 ```
 
+```sh
+sh ./release.sh -SkipPublish
+```
+
 ## Notes
 
-- If `adb` is not found, the app prints download/setup guidance.
+- If `adb` is not found, the app tries to auto-download official Platform Tools first.
+- If auto-download fails, the app prints the manual download page.
 - Devices in `offline` or `unauthorized` state are not selectable.
 - If no usable device is found, the app prints guidance for Developer Mode and USB debugging.
 
@@ -139,20 +185,35 @@ ADB 탐색 순서:
 2. `ADB_PATH` 환경변수
 3. 프로젝트 폴더 내부 `platform-tools\adb.exe`
 4. Windows의 일반적인 Android SDK 경로
+5. 그래도 없으면 공식 Platform Tools를 자동 다운로드해서 `platform-tools\`에 압축 해제
 
-공식 다운로드:
+공식 페이지:
 
 ```text
 https://developer.android.com/tools/releases/platform-tools
 ```
 
+앱이 자동 다운로드에 사용하는 Windows ZIP 직접 링크:
+
+```text
+https://dl.google.com/android/repository/platform-tools-latest-windows.zip
+```
+
 ## 실행
+
+Windows:
 
 ```bat
 run.cmd
 ```
 
-또는:
+Linux / macOS:
+
+```sh
+sh ./run.sh
+```
+
+또는 직접:
 
 ```bash
 go run .
@@ -188,22 +249,48 @@ flowchart TD
 platform-tools\adb.exe
 ```
 
+`adb`가 없으면 앱이 자동으로 다음 단계를 수행할 수 있습니다.
+
+1. 공식 Windows Platform Tools ZIP 다운로드
+2. `platform-tools\` 폴더로 압축 해제
+3. `platform-tools\adb.exe` 실행
+
+네트워크나 정책 제한으로 자동 다운로드가 실패하면, 위 공식 페이지에서 수동 다운로드할 수 있습니다.
+
 ## 빌드
+
+Windows:
 
 ```bat
 build.cmd
 ```
 
-`build.cmd`는 `release` 폴더를 만들고, 아래처럼 버전이 포함된 실행 파일을 생성합니다.
+Linux / macOS:
+
+```sh
+sh ./build.sh
+```
+
+빌드 스크립트는 `release` 폴더를 만들고, 아래처럼 버전이 포함된 실행 파일을 생성합니다.
 
 ```text
 release\GalaxyCameraMuteAdb_v0.1.0.exe
+release/GalaxyCameraMuteAdb_v0.1.0_linux
+release/GalaxyCameraMuteAdb_v0.1.0_macos
 ```
 
 ## 릴리즈
 
+Windows:
+
 ```bat
 release.cmd
+```
+
+Linux / macOS:
+
+```sh
+sh ./release.sh
 ```
 
 릴리즈 흐름:
@@ -224,9 +311,14 @@ release.cmd
 release.cmd -SkipPublish
 ```
 
+```sh
+sh ./release.sh -SkipPublish
+```
+
 ## 참고
 
-- `adb`를 찾지 못하면 다운로드/설치 안내를 출력합니다.
+- `adb`를 찾지 못하면 먼저 공식 Platform Tools 자동 다운로드를 시도합니다.
+- 자동 다운로드가 실패하면 수동 다운로드 페이지를 안내합니다.
 - `offline`, `unauthorized` 상태 장비는 선택 목록에서 제외됩니다.
 - 사용 가능한 장비가 없으면 개발자 모드와 USB 디버깅 확인 안내를 출력합니다.
 

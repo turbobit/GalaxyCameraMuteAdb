@@ -1,9 +1,12 @@
 package main
 
 import (
+	"archive/zip"
 	"bufio"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,6 +16,7 @@ import (
 
 const shutterSoundKey = "csc_pref_camera_forced_shuttersound_key"
 const platformToolsURL = "https://developer.android.com/tools/releases/platform-tools"
+const platformToolsWindowsZipURL = "https://dl.google.com/android/repository/platform-tools-latest-windows.zip"
 
 var version = "dev"
 
@@ -129,10 +133,18 @@ func resolveAdbPath() (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf(
-		"adb를 찾을 수 없습니다.\n- PATH에 adb를 추가하거나\n- 프로젝트 폴더의 platform-tools\\adb.exe 에 두거나\n- ADB_PATH 환경변수로 adb.exe 경로를 지정하세요\n공식 다운로드: %s",
-		platformToolsURL,
-	)
+	fmt.Println("adb를 찾지 못했습니다. 공식 Platform Tools를 자동 다운로드합니다.")
+
+	downloadedAdbPath, err := ensureLocalPlatformTools()
+	if err != nil {
+		return "", fmt.Errorf(
+			"adb 자동 다운로드 실패: %w\n수동 다운로드: %s",
+			err,
+			platformToolsURL,
+		)
+	}
+
+	return downloadedAdbPath, nil
 }
 
 func listDevices(adbPath string) ([]Device, []Device, error) {
@@ -310,6 +322,139 @@ func printConnectionGuidance(devices []Device) {
 	fmt.Println("- USB 연결 후 휴대폰에 표시되는 디버깅 허용 팝업을 승인하세요.")
 	fmt.Println("- 충전 전용이 아니라 파일 전송 가능한 USB 케이블인지 확인하세요.")
 	fmt.Println("- Samsung USB 드라이버 또는 제조사 드라이버가 필요한지 확인하세요.")
+}
+
+func ensureLocalPlatformTools() (string, error) {
+	targetDir := filepath.Join(".", "platform-tools")
+	targetAdb := filepath.Join(targetDir, "adb.exe")
+
+	if _, err := os.Stat(targetAdb); err == nil {
+		absPath, absErr := filepath.Abs(targetAdb)
+		if absErr == nil {
+			return absPath, nil
+		}
+		return targetAdb, nil
+	}
+
+	if err := os.MkdirAll(targetDir, 0o755); err != nil {
+		return "", fmt.Errorf("platform-tools 폴더 생성 실패: %w", err)
+	}
+
+	tempZip, err := os.CreateTemp("", "platform-tools-*.zip")
+	if err != nil {
+		return "", fmt.Errorf("임시 zip 파일 생성 실패: %w", err)
+	}
+	tempZipPath := tempZip.Name()
+	defer os.Remove(tempZipPath)
+
+	defer tempZip.Close()
+
+	fmt.Printf("다운로드 중: %s\n", platformToolsWindowsZipURL)
+
+	resp, err := http.Get(platformToolsWindowsZipURL)
+	if err != nil {
+		return "", fmt.Errorf("platform-tools 다운로드 실패: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("platform-tools 다운로드 HTTP 상태 오류: %s", resp.Status)
+	}
+
+	if _, err := io.Copy(tempZip, resp.Body); err != nil {
+		return "", fmt.Errorf("zip 저장 실패: %w", err)
+	}
+
+	if err := tempZip.Close(); err != nil {
+		return "", fmt.Errorf("임시 zip 닫기 실패: %w", err)
+	}
+
+	fmt.Printf("압축 해제 중: %s\n", targetDir)
+
+	if err := unzipPlatformTools(tempZipPath, targetDir); err != nil {
+		return "", err
+	}
+
+	absPath, err := filepath.Abs(targetAdb)
+	if err == nil {
+		return absPath, nil
+	}
+
+	return targetAdb, nil
+}
+
+func unzipPlatformTools(zipPath, targetDir string) error {
+	reader, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return fmt.Errorf("zip 열기 실패: %w", err)
+	}
+	defer reader.Close()
+
+	cleanTargetDir, err := filepath.Abs(targetDir)
+	if err != nil {
+		return fmt.Errorf("대상 경로 확인 실패: %w", err)
+	}
+
+	for _, file := range reader.File {
+		if !strings.HasPrefix(file.Name, "platform-tools/") {
+			continue
+		}
+
+		relativePath := strings.TrimPrefix(file.Name, "platform-tools/")
+		if relativePath == "" {
+			continue
+		}
+
+		destinationPath := filepath.Join(cleanTargetDir, filepath.FromSlash(relativePath))
+		cleanDestinationPath := filepath.Clean(destinationPath)
+
+		if !strings.HasPrefix(cleanDestinationPath, cleanTargetDir+string(os.PathSeparator)) && cleanDestinationPath != cleanTargetDir {
+			return fmt.Errorf("압축 해제 중 잘못된 경로 감지: %s", file.Name)
+		}
+
+		if file.FileInfo().IsDir() {
+			if err := os.MkdirAll(cleanDestinationPath, 0o755); err != nil {
+				return fmt.Errorf("폴더 생성 실패: %w", err)
+			}
+			continue
+		}
+
+		if err := os.MkdirAll(filepath.Dir(cleanDestinationPath), 0o755); err != nil {
+			return fmt.Errorf("상위 폴더 생성 실패: %w", err)
+		}
+
+		src, err := file.Open()
+		if err != nil {
+			return fmt.Errorf("zip 파일 열기 실패: %w", err)
+		}
+
+		dst, err := os.OpenFile(cleanDestinationPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o755)
+		if err != nil {
+			src.Close()
+			return fmt.Errorf("대상 파일 생성 실패: %w", err)
+		}
+
+		_, copyErr := io.Copy(dst, src)
+		closeDstErr := dst.Close()
+		closeSrcErr := src.Close()
+
+		if copyErr != nil {
+			return fmt.Errorf("파일 복사 실패: %w", copyErr)
+		}
+		if closeDstErr != nil {
+			return fmt.Errorf("대상 파일 닫기 실패: %w", closeDstErr)
+		}
+		if closeSrcErr != nil {
+			return fmt.Errorf("zip 파일 닫기 실패: %w", closeSrcErr)
+		}
+	}
+
+	targetAdb := filepath.Join(cleanTargetDir, "adb.exe")
+	if _, err := os.Stat(targetAdb); err != nil {
+		return fmt.Errorf("압축 해제 후 adb.exe를 찾을 수 없습니다: %w", err)
+	}
+
+	return nil
 }
 
 func exitWithError(err error) {
