@@ -45,6 +45,16 @@ function Get-GitStatusLines {
     return @($lines | Where-Object { $_ -and $_.Trim().Length -gt 0 })
 }
 
+function Test-GitHubReleaseExists {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Tag
+    )
+
+    & cmd.exe /c "gh release view $Tag >nul 2>nul"
+    return $LASTEXITCODE -eq 0
+}
+
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $scriptDir
 
@@ -147,8 +157,7 @@ if ($tagExists) {
 
 Invoke-Checked -FilePath "git" -Arguments @("push", "origin", "refs/tags/$tag", "--force")
 
-& gh release view $tag *> $null
-$releaseExists = $LASTEXITCODE -eq 0
+$releaseExists = Test-GitHubReleaseExists -Tag $tag
 
 if ($releaseExists) {
     Write-Host "Existing GitHub release found. Updating release."
