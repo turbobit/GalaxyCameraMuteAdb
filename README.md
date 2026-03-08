@@ -93,12 +93,15 @@ release.cmd
 
 동작:
 
-1. `VERSION` 파일 기준으로 `v<version>` 태그 확인
-2. 태그가 없으면 생성, 있으면 현재 `HEAD` 로 강제 업데이트
-3. 이전 태그와 현재 커밋 사이의 로그로 릴리즈 메시지 생성
-4. `build.cmd` 로 빌드
-5. GitHub Release 생성 또는 업데이트
-6. `release\GalaxyCameraMuteAdb_v<version>.exe` 업로드
+1. 기존 `release` 폴더 산출물 삭제
+2. `build.cmd` 로 새 빌드 생성
+3. 변경 파일을 `git add -A` 후 `release: v<version>` 메시지로 커밋
+4. 현재 브랜치를 `origin` 에 푸시
+5. `VERSION` 파일 기준으로 `v<version>` 태그 확인
+6. 태그가 없으면 생성, 있으면 현재 `HEAD` 로 강제 업데이트
+7. 이전 태그와 현재 커밋 사이의 로그로 릴리즈 메시지 생성
+8. GitHub Release 생성 또는 업데이트
+9. `release\GalaxyCameraMuteAdb_v<version>.exe` 업로드
 
 원격 반영 없이 로컬에서만 확인하려면:
 

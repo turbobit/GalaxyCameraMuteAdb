@@ -36,6 +36,15 @@ function Get-CommandOutput {
     return @($output)
 }
 
+function Get-GitStatusLines {
+    $lines = & git status --short
+    if ($LASTEXITCODE -ne 0) {
+        throw "Command failed: git status --short"
+    }
+
+    return @($lines | Where-Object { $_ -and $_.Trim().Length -gt 0 })
+}
+
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $scriptDir
 
@@ -50,14 +59,32 @@ $releaseDir = Join-Path $scriptDir "release"
 $assetName = "GalaxyCameraMuteAdb_v$version.exe"
 $assetPath = Join-Path $releaseDir $assetName
 $notesPath = Join-Path $releaseDir "release-notes-$version.md"
+$branch = (Get-CommandOutput -FilePath "git" -Arguments @("branch", "--show-current") | Select-Object -First 1).Trim()
 
 Write-Host "Version: $version"
 Write-Host "Tag: $tag"
+Write-Host "Branch: $branch"
 
+if (Test-Path -LiteralPath $releaseDir) {
+    Remove-Item -LiteralPath (Join-Path $releaseDir "*") -Force -Recurse -ErrorAction SilentlyContinue
+}
 Invoke-Checked -FilePath "cmd.exe" -Arguments @("/c", "build.cmd")
 
 if (-not (Test-Path -LiteralPath $assetPath)) {
     throw "Build output not found: $assetPath"
+}
+
+$statusBeforeCommit = Get-GitStatusLines
+if (-not $SkipPublish) {
+    if ($statusBeforeCommit.Count -gt 0) {
+        Write-Host "Changes detected. Staging files."
+        Invoke-Checked -FilePath "git" -Arguments @("add", "-A")
+        Invoke-Checked -FilePath "git" -Arguments @("commit", "-m", "release: $tag")
+    } else {
+        Write-Host "No changes to commit."
+    }
+
+    Invoke-Checked -FilePath "git" -Arguments @("push", "origin", $branch)
 }
 
 $allTags = Get-CommandOutput -FilePath "git" -Arguments @("tag", "--list", "v*", "--sort=-version:refname")
