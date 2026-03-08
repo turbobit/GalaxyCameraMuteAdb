@@ -48,6 +48,19 @@ run.cmd
 3. 콘솔에서 번호 선택
 4. 선택한 장비에 셔터음 비활성화 명령 실행
 
+패치 구조:
+
+```mermaid
+flowchart TD
+    A[GalaxyCameraMuteAdb Go CLI] -->|1. adb 탐색| B[adb.exe]
+    B -->|PATH / ADB_PATH / local platform-tools| C[adb devices -l]
+    C -->|2. device 상태만 필터| D[USB connected device]
+    D -->|3. 장비 선택| E[settings get system<br/>csc_pref_camera_forced_shuttersound_key]
+    E -->|4. 현재 상태 출력| F[adb shell settings put system<br/>csc_pref_camera_forced_shuttersound_key 0]
+    F -->|5. 명령 성공 여부 확인| G[settings get system<br/>csc_pref_camera_forced_shuttersound_key]
+    G -->|6. 최종 상태 검증| H[결과 출력<br/>- 명령 성공/실패<br/>- 전/후 상태<br/>- 상태 변화]
+```
+
 프로젝트 폴더에 직접 둘 수도 있습니다.
 
 ```text
@@ -70,6 +83,27 @@ build.cmd
 
 ```text
 release\GalaxyCameraMuteAdb_v0.1.0.exe
+```
+
+## 릴리즈
+
+```bat
+release.cmd
+```
+
+동작:
+
+1. `VERSION` 파일 기준으로 `v<version>` 태그 확인
+2. 태그가 없으면 생성, 있으면 현재 `HEAD` 로 강제 업데이트
+3. 이전 태그와 현재 커밋 사이의 로그로 릴리즈 메시지 생성
+4. `build.cmd` 로 빌드
+5. GitHub Release 생성 또는 업데이트
+6. `release\GalaxyCameraMuteAdb_v<version>.exe` 업로드
+
+원격 반영 없이 로컬에서만 확인하려면:
+
+```bat
+release.cmd -SkipPublish
 ```
 
 ## 참고
